@@ -99,7 +99,7 @@
             const rows = parseRowsFromHash();
             renderGrid(rows);
             if (typeof ReturnStringToMobileFrame === "function") {
-                ReturnStringToMobileFrame(getPluginsValue());
+                ReturnStringToMobileFrame(window.location.href);
             }
         }
 
@@ -111,7 +111,7 @@
                 location.hash = newHash;
             }
             if (typeof ReturnStringToMobileFrame === "function") {
-                ReturnStringToMobileFrame(getPluginsValue());
+                ReturnStringToMobileFrame(window.location.href);
             }
         }
 
