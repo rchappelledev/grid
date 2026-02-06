@@ -23,70 +23,98 @@
         </table>
     </div>
     <script>
+
         const gridBody = document.getElementById("gridBody");
 
+        // If the function exists, return the current URL to MobileFrame so that it can update our custom control's value.
+        function notifyMobileFrame() 
+        {
+            if (typeof ReturnStringToMobileFrame === "function")
+                ReturnStringToMobileFrame(window.location.href);
+        }
+
+        // Parse out the grid data from the URL. Return an array of rows like: [ [col1, col2], ...]
         function parseRowsFromHash() 
         {
+            // Get the hash parameters.
             const params = new URLSearchParams(location.hash.slice(1));
             const rows = [];
+
+            // Get every "addRow" value from the URL.
             const addRowValues = params.getAll("addRow");
             for (const pair of addRowValues) 
             {
+                // Split "col1,col2" on the comma: everything before is col1, everything after is col2.
                 const idx = pair.indexOf(",");
                 const col1 = idx >= 0 ? decodeURIComponent(pair.slice(0, idx).trim()) : decodeURIComponent(pair.trim());
                 const col2 = idx >= 0 ? decodeURIComponent(pair.slice(idx + 1).trim()) : "";
+
+                // Add this row to our list.
                 rows.push([col1, col2]);
             }
             return rows;
         }
 
+        // Turn data into a hash that can be put into the URL.
         function buildHashFromRows(rows) 
         {
             if (rows.length === 0) return "";
+
+            // Each row becomes "addRow=col1,col2", then we join them with &.
             const pairs = rows.map(([a, b]) => "addRow=" + encodeURIComponent(a) + "," + encodeURIComponent(b));
             return "#" + pairs.join("&");
         }
 
+        // Helper function to draw the grid. 
         function renderGrid(rows) 
         {
+            // Remove any rows that are already in the table.
             gridBody.innerHTML = "";
             for (const [col1, col2] of rows) 
             {
+                // Create a new table row and two cells.
                 const tr = document.createElement("tr");
                 const td1 = document.createElement("td");
                 const td2 = document.createElement("td");
+
+                // Put the text in the cells.
                 td1.textContent = col1;
                 td2.textContent = col2;
+
+                // Attach the cells to the row, then attach the row to the table
                 tr.appendChild(td1);
                 tr.appendChild(td2);
+
                 gridBody.appendChild(tr);
             }
         }
 
-        function syncHashToGrid() {
+        // Called when our hash changes. Rebuild the grid to show the updated values.
+        function syncHashToGrid() 
+        {
             const rows = parseRowsFromHash();
             renderGrid(rows);
-            if (typeof ReturnStringToMobileFrame === "function") {
-                ReturnStringToMobileFrame(window.location.href);
-            }
+            notifyMobileFrame();
         }
 
+        // Run when the page first loads: read the hash, draw the grid, fix the hash if needed, then tell MobileFrame ---
         function initGridFromHash() 
         {
             const rows = parseRowsFromHash();
             renderGrid(rows);
             const newHash = buildHashFromRows(rows);
+
+            // Only update the has if there is a change.
             if (location.hash !== newHash && rows.length > 0) 
-            {
                 location.hash = newHash;
-            }
-            if (typeof ReturnStringToMobileFrame === "function") 
-            {
-                ReturnStringToMobileFrame(window.location.href);
-            }
+
+            notifyMobileFrame();
         }
 
+        // Attach the listener for hashchange. This way we can update the grid using setStepValue.
         window.addEventListener("hashchange", syncHashToGrid);
+
+        // When the page loads, load the grid from the hash.
         initGridFromHash();
     </script>
 </body>
