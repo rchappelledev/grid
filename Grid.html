@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Control Grid</title>
+    <style>
+        #grid { margin: 0 auto; border-collapse: collapse; table-layout: fixed; max-width: 600px; width: 100%; }
+        #grid th, #grid td { border: 1px solid #ccc; padding: 6px 10px; word-wrap: break-word; overflow-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <div>
+        <table id="grid">
+            <thead>
+                <tr>
+                    <th>Column1</th>
+                </tr>
+            </thead>
+            <tbody id="gridBody">
+            </tbody>
+        </table>
+    </div>
+    <script>
+
+        // Reference to the table body so we can add and clear rows.
+        const gridBody = document.getElementById("gridBody");
+
+        // Grid data: array of single cell values. Default: 10 rows with 1-based index as text.
+        let rows = Array.from({ length: 10 }, (_, i) => String(i + 1));
+
+        // Helper function to send the URL back to MobileFrame.
+        function notifyMobileFrame() 
+        {
+            if (typeof ReturnStringToMobileFrame === "function") 
+            {
+                ReturnStringToMobileFrame(window.location.href);
+            }
+        }
+
+        // Helper function that handles addRow calls. Accepts one value per row.
+        function getAddRowCommandsFromHash() 
+        {
+            const params = new URLSearchParams(location.hash.slice(1));
+            const toAdd = [];
+            const addRowValues = params.getAll("addRow");
+            for (const raw of addRowValues) 
+            {
+                toAdd.push(decodeURIComponent(raw.trim()));
+            }
+            return toAdd;
+        }
+
+         // Helper function that handles removeRow calls. Supports multiple removeRow params, each with one index.
+        function getRemoveRowCommandsFromHash() 
+        {
+            const params = new URLSearchParams(location.hash.slice(1));
+            const rawValues = params.getAll("removeRow");
+            const result = [];
+            for (const raw of rawValues) 
+            {
+                const n = parseInt(raw.trim(), 10);
+                if (!isNaN(n) && n >= 0) result.push(n);
+            }
+            return result;
+        }
+
+        // Takes whatever addRow/removeRow/clearGrid commands are in the URL and applies them to the grid data.
+        function applyCommandsFromHash() 
+        {
+            const params = new URLSearchParams(location.hash.slice(1));
+            if (params.has("clearGrid")) 
+            {
+                rows = [];
+            }
+
+            const toAdd = getAddRowCommandsFromHash();
+            const toRemove = getRemoveRowCommandsFromHash();
+
+            // Add new rows to the end.
+            for (const row of toAdd) 
+            {
+                rows.push(row);
+            }
+
+            // Remove by index. Sort high to low so we don't change the index of rows we haven't removed yet.
+            toRemove.sort((a, b) => b - a);
+            for (const index of toRemove) 
+            {
+                if (index < rows.length) 
+                {
+                    rows.splice(index, 1);
+                }
+            }
+        }
+
+        // Builds a new hash string that is the current hash minus any addRow, removeRow, and clearGrid params.
+        // Used after we've applied those commands so we can trim them from the URL.
+        function getHashWithoutAddRemoveParams() 
+        {
+            const params = new URLSearchParams(location.hash.slice(1));
+            params.delete("addRow");
+            params.delete("removeRow");
+            params.delete("clearGrid");
+            const str = params.toString();
+            return str ? "#" + str : "";
+        }
+
+        // Clears the table and fills it with one row per item in the rows array.
+        function renderGrid() 
+        {
+            gridBody.innerHTML = "";
+            for (const cell of rows) 
+            {
+                const tr = document.createElement("tr");
+                const td = document.createElement("td");
+                td.textContent = cell;
+                tr.appendChild(td);
+                gridBody.appendChild(tr);
+            }
+        }
+
+        // Clears the grid data and updates the visuals.
+        function clearGrid() 
+        {
+            rows = [];
+            renderGrid();
+            history.replaceState(null, "", location.pathname + location.search);
+            notifyMobileFrame();
+        }
+
+        // Process the hash parameters.
+        function processHashAndSync() 
+        {
+            // 1. Apply any addRow/removeRow in the URL to our in-memory rows.
+            applyCommandsFromHash();
+
+            // 2. Redraw the table to match the updated rows.
+            renderGrid();
+
+            // 3. Remove addRow, removeRow, clearGrid from the URL only if something actually changed.
+            // Use replaceState (not location.hash) so we don't fire hashchange and trigger a second
+            // processHashAndSync + renderGrid, which can reset scroll in WKWebView.
+            const trimmedHash = getHashWithoutAddRemoveParams();
+            const currentHash = (location.hash === "#" || location.hash === "") ? "" : location.hash;
+            if (currentHash !== trimmedHash) 
+            {
+                const newUrl = trimmedHash === ""
+                    ? location.pathname + location.search
+                    : location.pathname + location.search + trimmedHash;
+                history.replaceState(null, "", newUrl);
+                notifyMobileFrame();
+            }
+        }
+
+        // When the user (or something else) changes the hash, re-sync.
+        window.addEventListener("hashchange", processHashAndSync);
+
+        // Initialize with whatever is in the hash.
+        processHashAndSync();
+
+    </script>
+</body>
+</html>
