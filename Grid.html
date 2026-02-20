@@ -26,8 +26,8 @@
         // Reference to the table body so we can add and clear rows.
         const gridBody = document.getElementById("gridBody");
 
-        // Grid data: array of single cell values. Default: 10 rows with 1-based index as text.
-        let rows = Array.from({ length: 10 }, (_, i) => String(i + 1));
+        // Grid data: array of single cell values. Initially empty.
+        let rows = [];
 
         // Helper function to send the URL back to MobileFrame.
         function notifyMobileFrame() 
