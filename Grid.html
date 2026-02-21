@@ -26,10 +26,10 @@
         // Reference to the table body so we can add and clear rows.
         const gridBody = document.getElementById("gridBody");
 
-        // Grid data: array of single cell values. Initially empty.
+        // The current grid data.
         let rows = [];
 
-        // Helper function to send the URL back to MobileFrame.
+        // Helper function to send the URL back to MobileFrame so that the step reference can be updated.
         function notifyMobileFrame() 
         {
             if (typeof ReturnStringToMobileFrame === "function") 
@@ -69,6 +69,8 @@
         function applyCommandsFromHash() 
         {
             const params = new URLSearchParams(location.hash.slice(1));
+
+            // First check for clearGrid.
             if (params.has("clearGrid")) 
             {
                 rows = [];
@@ -94,9 +96,8 @@
             }
         }
 
-        // Builds a new hash string that is the current hash minus any addRow, removeRow, and clearGrid params.
-        // Used after we've applied those commands so we can trim them from the URL.
-        function getHashWithoutAddRemoveParams() 
+        // Builds a new hash string that is the current hash minus any function params.
+        function getHashWithoutParams() 
         {
             const params = new URLSearchParams(location.hash.slice(1));
             params.delete("addRow");
@@ -106,7 +107,7 @@
             return str ? "#" + str : "";
         }
 
-        // Clears the table and fills it with one row per item in the rows array.
+        // Clears the grid and rebuilds it.
         function renderGrid() 
         {
             gridBody.innerHTML = "";
@@ -120,7 +121,7 @@
             }
         }
 
-        // Clears the grid data and updates the visuals.
+        // Handles a clear grid call.
         function clearGrid() 
         {
             rows = [];
@@ -132,31 +133,28 @@
         // Process the hash parameters.
         function processHashAndSync() 
         {
-            // 1. Apply any addRow/removeRow in the URL to our in-memory rows.
+            // Process "function" calls.
             applyCommandsFromHash();
 
-            // 2. Redraw the table to match the updated rows.
+            // Redraw the table to match the updated rows.
             renderGrid();
 
-            // 3. Remove addRow, removeRow, clearGrid from the URL only if something actually changed.
-            // Use replaceState (not location.hash) so we don't fire hashchange and trigger a second
-            // processHashAndSync + renderGrid, which can reset scroll in WKWebView.
-            const trimmedHash = getHashWithoutAddRemoveParams();
+            // Remove addRow, removeRow, clearGrid from the URL only if something actually changed.
+            const trimmedHash = getHashWithoutParams();
+
             const currentHash = (location.hash === "#" || location.hash === "") ? "" : location.hash;
+
             if (currentHash !== trimmedHash) 
             {
-                const newUrl = trimmedHash === ""
-                    ? location.pathname + location.search
-                    : location.pathname + location.search + trimmedHash;
+                const newUrl = trimmedHash === "" ? location.pathname + location.search : location.pathname + location.search + trimmedHash;
                 history.replaceState(null, "", newUrl);
                 notifyMobileFrame();
             }
         }
 
-        // When the user (or something else) changes the hash, re-sync.
+        // Update when the hash changes.
         window.addEventListener("hashchange", processHashAndSync);
 
-        // Initialize with whatever is in the hash.
         processHashAndSync();
 
     </script>
